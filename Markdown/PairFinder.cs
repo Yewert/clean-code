@@ -1,14 +1,12 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
 using FluentAssertions;
 using NUnit.Framework;
 
 namespace Markdown
 {
-    public static class PairFinder
+    public class PairFinder : IPairFinder
     {
-        public static (int a, int b)[] FindTagPairs(int[] openings, int[] closings)
+        public (int a, int b)[] FindTagPairs(int[] openings, int[] closings)
         {
             var result = new List<(int, int)>();
             var currentOpeningIndex = 0;
@@ -50,40 +48,46 @@ namespace Markdown
     [TestFixture]
     public class PairFinder_Should
     {
+        private PairFinder pairFinder;
+        [SetUp]
+        public void SetUp()
+        {
+             pairFinder = new PairFinder();   
+        }
         [Test]
         public void ReturnEmptyArray_WhenGivenTwoEmptyArrays()
         {
-            PairFinder.FindTagPairs(new int[] { }, new int[] { }).Should().BeEmpty();
+            pairFinder.FindTagPairs(new int[] { }, new int[] { }).Should().BeEmpty();
         }
 
         [Test]
         public void ReturnEmptySequence_WhenOnlyClosingsAreEmpty()
         {
-            PairFinder.FindTagPairs(new int[] { 10}, new int[] { }).Should().BeEmpty();
+            pairFinder.FindTagPairs(new int[] { 10 }, new int[] { }).Should().BeEmpty();
         }
         
         [Test]
         public void ReturnEmptySequence_WhenOnlyOpeningsAreEmpty()
         {
-            PairFinder.FindTagPairs(new int[] { 10}, new int[] { }).Should().BeEmpty();
+            pairFinder.FindTagPairs(new int[] { 10 }, new int[] { }).Should().BeEmpty();
         }
         
        [ Test]
         public void ReturnEmptySequence_WhenOpeningIsGreaterThanCosing()
         {
-            PairFinder.FindTagPairs(new int[] { 10}, new int[] { 9}).Should().BeEmpty();
+            pairFinder.FindTagPairs(new int[] { 10 }, new int[] { 9 }).Should().BeEmpty();
         }
 
         [Test]
         public void ReturnCorrectResult_OnSimpleTest()
         {
-            PairFinder.FindTagPairs(new []{10}, new []{11}).Should().BeEquivalentTo(new []{(10, 11)});
+            pairFinder.FindTagPairs(new []{ 10 }, new []{ 11 }).Should().BeEquivalentTo(new []{(10, 11)});
         }
         
         [Test]
         public void ReturnCorrectResult_OnTwoCrossoverSegments()
         {
-            PairFinder.FindTagPairs(new []{10, 11}, new []{11, 12}).Should().BeEquivalentTo(new []{(10, 11)});
+            pairFinder.FindTagPairs(new []{ 10, 11 }, new []{ 11, 12 }).Should().BeEquivalentTo(new []{(10, 11)});
         }
     }
 }

@@ -55,7 +55,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CodeTag.cs" />
     <Compile Include="DoubleUnderscore.cs" />
+    <Compile Include="IPairFinder.cs" />
     <Compile Include="PairFinder.cs" />
     <Compile Include="IFormattingUnit.cs" />
     <Compile Include="IntExtensions.cs" />
