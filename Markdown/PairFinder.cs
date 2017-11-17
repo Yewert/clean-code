@@ -20,7 +20,7 @@ namespace Markdown
 
                 else if (closings[currentClosingIndex] > openings[currentOpeningIndex])
                 {
-                    if (currentOpeningIndex < closings.Length - 1)
+                    if (currentOpeningIndex < openings.Length - 1)
                     {
                         if (openings[currentOpeningIndex + 1] < closings[currentClosingIndex])
                             currentOpeningIndex++;
@@ -88,6 +88,12 @@ namespace Markdown
         public void ReturnCorrectResult_OnTwoCrossoverSegments()
         {
             pairFinder.FindTagPairs(new []{ 10, 11 }, new []{ 11, 12 }).Should().BeEquivalentTo(new []{(10, 11)});
+        }
+        
+        [Test]
+        public void ReturnCorrectResult_OnOneOpeningAndTwoClosing()
+        {
+            pairFinder.FindTagPairs(new []{ 10}, new []{ 11, 12 }).Should().BeEquivalentTo(new []{(10, 11)});
         }
     }
 }

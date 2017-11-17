@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace Markdown
 {
@@ -8,7 +6,8 @@ namespace Markdown
     {
         Regex MarkdownOpeningTagPattern { get; }
         Regex MarkdownClosingTagPattern { get; }
-        string MarkdownTag { get; }
+        string MarkdownOpeningTag { get; }
+        string MarkdownClosingTag { get; }
         string HtmlOpeningTag { get; }
         string HtmlClosingTag { get; }
         string HtmlTagName { get; }

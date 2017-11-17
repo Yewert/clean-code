@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Remoting.Messaging;
 using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,6 +16,7 @@ namespace Markdown
 		private readonly string closingParagraph;
 		private readonly IFormattingUnit[] formatters;
 		private readonly IPairFinder pairFinder;
+		private static readonly Regex BackslashRemover = new Regex(@"\\(?!\\)", RegexOptions.Compiled);
 		private (int A, int B)[][] tagLevelSeparatedSubstringIndexes;
 		
 		public Md(IFormattingUnit[] formatters, IPairFinder pairFinder, string paragraphSymbol="p")
@@ -28,6 +30,8 @@ namespace Markdown
 		{
 			if (source is null)
 				throw new ArgumentNullException();
+
+			source = source.Replace("<", "&lt").Replace(">", "&gt");
 
 			tagLevelSeparatedSubstringIndexes = new (int, int)[formatters.Length][];
 			for (var i = 0; i < formatters.Length; i++)
@@ -84,18 +88,19 @@ namespace Markdown
 				var formatter = formatters[replacement.Level];
 				if (replacement.IsOpening)
 				{
-					builder.Remove(offset + replacement.Position, formatter.MarkdownTag.Length);
+					builder.Remove(offset + replacement.Position, formatter.MarkdownOpeningTag.Length);
 					builder.Insert(offset + replacement.Position, formatter.HtmlOpeningTag);
-					offset += formatter.HtmlOpeningTag.Length - formatter.MarkdownTag.Length;
+					offset += formatter.HtmlOpeningTag.Length - formatter.MarkdownOpeningTag.Length;
 				}
 				else
 				{
-					builder.Remove(offset + replacement.Position, formatter.MarkdownTag.Length);
+					builder.Remove(offset + replacement.Position, formatter.MarkdownClosingTag.Length);
 					builder.Insert(offset + replacement.Position, formatter.HtmlClosingTag);
-					offset += formatter.HtmlClosingTag.Length - formatter.MarkdownTag.Length;
+					offset += formatter.HtmlClosingTag.Length - formatter.MarkdownClosingTag.Length;
 				}
 			}
-			return builder.ToString();
+			var m = BackslashRemover.Matches(builder.ToString());
+			return BackslashRemover.Replace(builder.ToString(), "");
 		}
 	}
 
@@ -110,6 +115,10 @@ namespace Markdown
 		private string closingStrong;
 		private string openingCode;
 		private string closingCode;
+		private string openingHeader1;
+		private string closingHeader1;
+		private string openingHeader2;
+		private string closingHeader2;
 		private Md markdownParser;
 		[SetUp]
 		public void SetUp()
@@ -118,10 +127,14 @@ namespace Markdown
 			(openingItalic, closingItalic) = NameToTagConverter.GetTagFromName("em");
 			(openingStrong, closingStrong) = NameToTagConverter.GetTagFromName("strong");
 			(openingCode, closingCode) = NameToTagConverter.GetTagFromName("code");
+			(openingHeader1, closingHeader1) = NameToTagConverter.GetTagFromName("h1");
+			(openingHeader2, closingHeader2) = NameToTagConverter.GetTagFromName("h2");
 			markdownParser = new Md(new IFormattingUnit[]
 					{
 						new SingleUnderscore(),
 						new DoubleUnderscore(),
+						new Header1Tag(),
+						new Header2Tag(), 
 						new CodeTag()
 					},
 				new PairFinder());
@@ -243,6 +256,38 @@ namespace Markdown
 			markdownParser.RenderToHtml("`ab`").Should().Be(
 				$"{openingParagraph}{openingCode}ab{closingCode}{closingParagraph}");
 			//<p><code>ab</code></p>
+		}
+
+		#endregion
+
+		#region Header1
+
+		[Test]
+		public void PutsH1Tag_WhenHashIsInTheStartOfTheString()
+		{
+			markdownParser.RenderToHtml("# kek").Should().Be(
+				$"{openingParagraph}{openingHeader1}kek{closingHeader1}{closingParagraph}");
+			//<p><h1>ab</h1></p>
+		}
+		
+		[Test]
+		public void PutsEmTagInsideH1Tag_WhenUnderscoreIsAfterHash()
+		{
+			markdownParser.RenderToHtml("# _kek_").Should().Be(
+				$"{openingParagraph}{openingHeader1}{openingItalic}kek{closingItalic}{closingHeader1}{closingParagraph}");
+			//<p><h1><em>ab</em></h1></p>
+		}
+
+		#endregion
+		
+		#region Header2
+
+		[Test]
+		public void PutsH2Tag_WhenHashIsInTheStartOfTheString()
+		{
+			markdownParser.RenderToHtml("## kek").Should().Be(
+				$"{openingParagraph}{openingHeader2}kek{closingHeader2}{closingParagraph}");
+			//<p><h2>ab</h2></p>
 		}
 
 		#endregion

@@ -57,6 +57,8 @@
   <ItemGroup>
     <Compile Include="CodeTag.cs" />
     <Compile Include="DoubleUnderscore.cs" />
+    <Compile Include="Header1Tag.cs" />
+    <Compile Include="Header2Tag.cs" />
     <Compile Include="IPairFinder.cs" />
     <Compile Include="PairFinder.cs" />
     <Compile Include="IFormattingUnit.cs" />

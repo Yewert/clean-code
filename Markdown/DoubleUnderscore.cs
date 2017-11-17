@@ -4,34 +4,38 @@ namespace Markdown
 {
     public class DoubleUnderscore : IFormattingUnit
     {
-        private readonly Regex markdownOpeningTag;
-        private readonly Regex markdownClosingTag;
+        private readonly Regex markdownOpeningTagPattern;
+        private readonly Regex markdownClosingTagPattern;
         private readonly string htmlTagName;
         private readonly string htmlClosingTag;
         private readonly string htmlOpeningTag;
-        private string markdownTag;
+        private readonly string markdownOpeningTag;
+        private readonly string markdownClosingTag;
 
 
-        public DoubleUnderscore() : this("strong", @"(?<![_\d\\])__(?![_\s\d])", @"(?<![_\s\d\\])__(?![_\d])", "__")
+        public DoubleUnderscore() : this("strong", @"(?<![_\d\\])__(?![_\s\d])", @"(?<![_\s\d\\])__(?![_\d])", "__", "__")
         {
         }
 
         private DoubleUnderscore(string htmlTag,
             string markdownOpeningTagPattern,
-            string markdownClosingTagPattern, string markdownTag)
+            string markdownClosingTagPattern, string markdownOpeningTag, string markdownClosingTag)
         {
             htmlTagName = htmlTag;
-            this.markdownTag = markdownTag;
+            this.markdownOpeningTag = markdownOpeningTag;
+            this.markdownClosingTag = markdownClosingTag;
             (htmlOpeningTag, htmlClosingTag) = NameToTagConverter.GetTagFromName(htmlTag);
-            markdownOpeningTag = new Regex(markdownOpeningTagPattern, RegexOptions.Compiled);
-            markdownClosingTag = new Regex(markdownClosingTagPattern, RegexOptions.Compiled);
+            this.markdownOpeningTagPattern = new Regex(markdownOpeningTagPattern, RegexOptions.Compiled);
+            this.markdownClosingTagPattern = new Regex(markdownClosingTagPattern, RegexOptions.Compiled);
         }
 
-        public Regex MarkdownOpeningTagPattern => markdownOpeningTag;
+        public Regex MarkdownOpeningTagPattern => markdownOpeningTagPattern;
 
-        public Regex MarkdownClosingTagPattern => markdownClosingTag;
+        public Regex MarkdownClosingTagPattern => markdownClosingTagPattern;
 
-        public string MarkdownTag => markdownTag;
+        public string MarkdownOpeningTag => markdownOpeningTag;
+
+        public string MarkdownClosingTag => markdownClosingTag;
 
         public string HtmlOpeningTag => htmlOpeningTag;
 

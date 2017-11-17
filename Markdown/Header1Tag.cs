@@ -2,7 +2,7 @@
 
 namespace Markdown
 {
-    public class CodeTag : IFormattingUnit
+    public class Header1Tag : IFormattingUnit
     {
         private readonly Regex markdownOpeningTagPattern;
         private readonly Regex markdownClosingTagPattern;
@@ -13,11 +13,11 @@ namespace Markdown
         private readonly string markdownClosingTag;
 
 
-        public CodeTag() : this("code", @"(?<![\\])`(?!\s)", @"(?<![\s\\])`", "`", "`")
+        public Header1Tag() : this("h1", @"^# ", @"(?<=.)$", "# ", "")
         {
         }
 
-        private CodeTag(string htmlTag,
+        private Header1Tag(string htmlTag,
             string markdownOpeningTagPattern,
             string markdownClosingTagPattern, string markdownOpeningTag, string markdownClosingTag)
         {
