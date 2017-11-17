@@ -1,8 +1,6 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
-using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
 using FluentAssertions;
@@ -99,7 +97,6 @@ namespace Markdown
 					offset += formatter.HtmlClosingTag.Length - formatter.MarkdownClosingTag.Length;
 				}
 			}
-			var m = BackslashRemover.Matches(builder.ToString());
 			return BackslashRemover.Replace(builder.ToString(), "");
 		}
 	}

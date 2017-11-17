@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿﻿using System;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Markdown
 {
-	class Program
+	static class Program
 	{
-		static void Main(string[] args)
+		public static void Main(string[] args)
 		{
 			var source = args[0];
 			var content = File.ReadAllText(source);
@@ -25,13 +21,8 @@ namespace Markdown
 				},
 				new PairFinder());
 			var save = args[1];
-			var html = new List<string>();
-			for (var index = 0; index < paragraphs.Length; index++)
-			{
-				var paragraph = paragraphs[index];
-				html.Add(markdownParser.RenderToHtml(paragraph));
-			}
-			File.WriteAllLines(save, html);
+			File.WriteAllLines(save, 
+				paragraphs.Select(paragraph => markdownParser.RenderToHtml(paragraph)).ToList());
 		}
 	}
 }
