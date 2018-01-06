@@ -58,12 +58,13 @@
     <Compile Include="CodeTag.cs" />
     <Compile Include="Bold.cs" />
     <Compile Include="IPairFinder.cs" />
+    <Compile Include="Md_Should.cs" />
     <Compile Include="PairFinder.cs" />
     <Compile Include="IFormattingUnit.cs" />
     <Compile Include="IntExtensions.cs" />
     <Compile Include="Md.cs" />
     <Compile Include="NameToTagConverter.cs" />
-    <Compile Include="Cursive.cs" />
+    <Compile Include="Italic.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
   <ItemGroup>

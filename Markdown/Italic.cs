@@ -1,9 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.Text.RegularExpressions;
 
 namespace Markdown
 {
-    public class CodeTag : IFormattingUnit
+    public class Italic : IFormattingUnit
     {
         private readonly string htmlClosingTag;
         private readonly string htmlOpeningTag;
@@ -12,11 +11,11 @@ namespace Markdown
         private readonly HashSet<char> illegalPreceedings;
 
 
-        public CodeTag() : this("code", "`", "1234567890 ", "1234567890 ")
+        public Italic() : this("em", "_", "1234567890 ", "1234567890 ")
         {
         }
 
-        public CodeTag(string htmlTag, string markdownOpeningTag, string illegalPreceeding, string illegalFollowing)
+        public Italic(string htmlTag, string markdownOpeningTag, string illegalPreceeding, string illegalFollowing)
         {
             this.markdownOpeningTag = markdownOpeningTag;
             illegalFollowings = new HashSet<char>(illegalFollowing);

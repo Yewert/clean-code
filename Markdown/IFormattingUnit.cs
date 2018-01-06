@@ -7,5 +7,7 @@ namespace Markdown
         string MarkdownTag { get; }
         string HtmlOpeningTag { get; }
         string HtmlClosingTag { get; }
+        bool isLegalPrecedingCharacter(char ch);
+        bool isLegalFollowingCharacter(char ch);
     }
 }
