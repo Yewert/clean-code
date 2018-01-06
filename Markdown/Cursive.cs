@@ -1,19 +1,17 @@
-﻿using System.Text.RegularExpressions;
-
-namespace Markdown
+﻿namespace Markdown
 {
-    public class CodeTag : IFormattingUnit
+    public class Cursive : IFormattingUnit
     {
         private readonly string htmlClosingTag;
         private readonly string htmlOpeningTag;
         private readonly string markdownOpeningTag;
 
 
-        public CodeTag() : this("code", "`")
+        public Cursive() : this("em", "_")
         {
         }
 
-        public CodeTag(string htmlTag, string markdownOpeningTag)
+        public Cursive(string htmlTag, string markdownOpeningTag)
         {
             this.markdownOpeningTag = markdownOpeningTag;
             (htmlOpeningTag, htmlClosingTag) = NameToTagConverter.GetTagFromName(htmlTag);

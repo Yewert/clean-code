@@ -56,16 +56,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CodeTag.cs" />
-    <Compile Include="DoubleUnderscore.cs" />
-    <Compile Include="Header1Tag.cs" />
-    <Compile Include="Header2Tag.cs" />
+    <Compile Include="Bold.cs" />
     <Compile Include="IPairFinder.cs" />
     <Compile Include="PairFinder.cs" />
     <Compile Include="IFormattingUnit.cs" />
     <Compile Include="IntExtensions.cs" />
     <Compile Include="Md.cs" />
     <Compile Include="NameToTagConverter.cs" />
-    <Compile Include="SingleUnderscore.cs" />
+    <Compile Include="Cursive.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
   <ItemGroup>

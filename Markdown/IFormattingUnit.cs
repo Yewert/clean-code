@@ -4,13 +4,8 @@ namespace Markdown
 {
     public interface IFormattingUnit
     {
-        Regex MarkdownOpeningTagPattern { get; }
-        Regex MarkdownClosingTagPattern { get; }
-        string MarkdownOpeningTag { get; }
-        string MarkdownClosingTag { get; }
+        string MarkdownTag { get; }
         string HtmlOpeningTag { get; }
         string HtmlClosingTag { get; }
-        string HtmlTagName { get; }
-        
     }
 }

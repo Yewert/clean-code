@@ -2,25 +2,31 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
-using FluentAssertions;
+ using FluentAssertions;
 using NUnit.Framework;
 
 namespace Markdown
 {
+	/* Split by space
+	 * Take while not letters
+	 * if len == token len -> drop
+	 * else work with token (i.e. put in stack if it is known
+	 */
 	public class Md	
 	{
 		private readonly string openingParagraph;
 		private readonly string closingParagraph;
-		private readonly IFormattingUnit[] formatters;
-		private readonly IPairFinder pairFinder;
-		private static readonly Regex BackslashRemover = new Regex(@"\\(?!\\)", RegexOptions.Compiled);
-		private (int A, int B)[][] tagLevelSeparatedSubstringIndexes;
+		private readonly Dictionary<IFormattingUnit, int> tagPriorities;
+		private readonly Dictionary<string, IFormattingUnit> tagToFormatter;
+		private readonly Func<char, bool> isAllowedInTag;
 		
-		public Md(IFormattingUnit[] formatters, IPairFinder pairFinder, string paragraphSymbol="p")
+
+		public Md(IFormattingUnit[] formatters, string paragraphSymbol="p")
 		{
-			this.formatters = formatters;
-			this.pairFinder = pairFinder;
+			var allowedChar = new HashSet<char>(formatters.SelectMany(f => f.MarkdownTag));
+			isAllowedInTag = allowedChar.Contains;
+			tagPriorities = formatters.Select((f, i) => (f, i)).ToDictionary(v => v.Item1, v => v.Item2);
+			tagToFormatter = formatters.Select(f => (f.MarkdownTag, f)).ToDictionary(v => v.Item1, v => v.Item2);
 			(openingParagraph, closingParagraph) = NameToTagConverter.GetTagFromName(paragraphSymbol);
 		}
 
@@ -31,73 +37,89 @@ namespace Markdown
 
 			source = source.Replace("<", "&lt").Replace(">", "&gt");
 
-			tagLevelSeparatedSubstringIndexes = new (int, int)[formatters.Length][];
-			for (var i = 0; i < formatters.Length; i++)
-			{
-				tagLevelSeparatedSubstringIndexes[i] = GetIndexesForTagType(formatters[i], i, source);
-			}
-			return $"{openingParagraph}{ReplaceMarkdownTagsWithHtml(source)}{closingParagraph}";
-		}
+			var tagStack = new Stack<(IFormattingUnit formatter, int position)>();
 
-		private bool IntersectsWithAnyScope(int scopePriority, int number)
-		{
-			for (var i = scopePriority - 1; i >= 0; i--)
+			var replacements = new List<(IFormattingUnit formatter, int position, bool isOpening)>();
+			
+			var tokenStartIndex = 0;
+			foreach (var token in source.Split(' '))
 			{
-				if (tagLevelSeparatedSubstringIndexes[i].Any(interval => number.BelongsToSegment(interval)))
+				var openingBackSlashes = token.TakeWhile(c => c == '/');
+				var openingPart = openingBackSlashes.Count() % 2 != 0 ? 
+					new char[]{} : token.Skip(openingBackSlashes.Count()).TakeWhile(isAllowedInTag);
+				if (openingPart.Count() + openingBackSlashes.Count() != token.Length)
 				{
-					return true;
+					var potentialTagAtStart = string.Join("", openingPart);
+					ProcessNewPotentialTag(
+						potentialTagAtStart,
+						tagStack,
+						replacements,
+						tokenStartIndex);
+					
 				}
+				var potentialTagAtTail = string.Join("", token.Reverse().TakeWhile(isAllowedInTag));
+				ProcessNewPotentialTag(
+					potentialTagAtTail,
+					tagStack,
+					replacements,
+					tokenStartIndex + token.Length - potentialTagAtTail.Length);
+				
+				tokenStartIndex += token.Length + 1;
+				
 			}
-			return false;
+			return $"{openingParagraph}{ReplaceMarkdownTagsWithHtml(source, replacements)}{closingParagraph}";
 		}
 
-		private (int, int)[] GetIndexesForTagType(IFormattingUnit formatter, int scopePriority, string source)
+		private void ProcessNewPotentialTag(
+			string potentialTag, Stack<(IFormattingUnit formatter, int position)> tagStack,
+			List<(IFormattingUnit formatter, int position, bool isOpening)> replacements,
+			int startIndex)
 		{
-            var openings = (from Match match in formatter.MarkdownOpeningTagPattern.Matches(source) select match.Index)
-	            .Where(index => !IntersectsWithAnyScope(scopePriority, index))
-	            .ToArray();
-            var closings = (from Match match in formatter.MarkdownClosingTagPattern.Matches(source) select match.Index)
-	            .Where(index => !IntersectsWithAnyScope(scopePriority, index))
-	            .ToArray();
-			return pairFinder.FindTagPairs(openings, closings);
-		}
+			if (potentialTag.Length == 0 || !tagToFormatter.ContainsKey(potentialTag)) 
+				return;
+ 			var priority = tagPriorities[tagToFormatter[potentialTag]];
+			var formatter = tagToFormatter[potentialTag];
+//			while (tagStack.Count != 0 && tagPriorities[tagStack.Peek().formatter] > priority)
+//			{
+//				tagStack.Pop();
+//			}
 
-		private IEnumerable<(int Position, bool IsOpening, int Level)> GetReplacementsInOrder()
-		{
-			var result = new List<(int Position, bool IsOpening, int Level)>();
-			for (var i = 0; i < tagLevelSeparatedSubstringIndexes.Length; i++)
+			if (tagStack.Count != 0 && tagStack.Peek().formatter == formatter)
 			{
-				foreach (var segment in tagLevelSeparatedSubstringIndexes[i])
-				{
-					result.Add((segment.A, true, i));
-					result.Add((segment.B, false, i));
-				}                               				
+				var (_, position) = tagStack.Pop();
+				replacements.Add((formatter, position, true));
+				replacements.Add((formatter, startIndex, false));
 			}
-			return result.OrderBy(x => x.Position);
+			else if (tagStack.Count == 0 || tagPriorities[tagStack.Peek().formatter] > priority)
+			{
+				tagStack.Push((formatter, startIndex));
+			}
 		}
 
-		private string ReplaceMarkdownTagsWithHtml(string source)
+		private string ReplaceMarkdownTagsWithHtml(
+			string source,
+			List<(IFormattingUnit formatter, int position, bool isOpening)> replacements)
 		{
 			var builder = new StringBuilder(source);
 			var offset = 0;
 			
-			foreach (var replacement in GetReplacementsInOrder())
+			foreach (var replacement in replacements.OrderBy(x => x.position))
 			{
-				var formatter = formatters[replacement.Level];
-				if (replacement.IsOpening)
+				var formatter = replacement.formatter;
+				if (replacement.isOpening)
 				{
-					builder.Remove(offset + replacement.Position, formatter.MarkdownOpeningTag.Length);
-					builder.Insert(offset + replacement.Position, formatter.HtmlOpeningTag);
-					offset += formatter.HtmlOpeningTag.Length - formatter.MarkdownOpeningTag.Length;
+					builder.Remove(offset + replacement.position, formatter.MarkdownTag.Length);
+					builder.Insert(offset + replacement.position, formatter.HtmlOpeningTag);
+					offset += formatter.HtmlOpeningTag.Length - formatter.MarkdownTag.Length;
 				}
 				else
 				{
-					builder.Remove(offset + replacement.Position, formatter.MarkdownClosingTag.Length);
-					builder.Insert(offset + replacement.Position, formatter.HtmlClosingTag);
-					offset += formatter.HtmlClosingTag.Length - formatter.MarkdownClosingTag.Length;
+					builder.Remove(offset + replacement.position, formatter.MarkdownTag.Length);
+					builder.Insert(offset + replacement.position, formatter.HtmlClosingTag);
+					offset += formatter.HtmlClosingTag.Length - formatter.MarkdownTag.Length;
 				}
 			}
-			return BackslashRemover.Replace(builder.ToString(), "");
+			return builder.ToString();
 		}
 	}
 
@@ -128,13 +150,10 @@ namespace Markdown
 			(openingHeader2, closingHeader2) = NameToTagConverter.GetTagFromName("h2");
 			markdownParser = new Md(new IFormattingUnit[]
 					{
-						new SingleUnderscore(),
-						new DoubleUnderscore(),
-						new Header1Tag(),
-						new Header2Tag(), 
+						new Cursive(),
+						new Bold(),
 						new CodeTag()
-					},
-				new PairFinder());
+					});
 		}
 			
 		[Test]
@@ -173,8 +192,8 @@ namespace Markdown
 		{
 			markdownParser.RenderToHtml("_a_b_d_").Should()
 				.Be($"{openingParagraph}{openingItalic}a" +
-				    $"{closingItalic}b{openingItalic}d{closingItalic}{closingParagraph}");
-			//<p><em>a</em><em>b</em><em>d</em></p>
+				    $"_b_d{closingItalic}{closingParagraph}");
+			//<p><em>a_b_d</em></p>
 		}
 
 		[Test]
@@ -211,7 +230,7 @@ namespace Markdown
 		{
 			markdownParser.RenderToHtml("__a__b__d__").Should()
 				.Be($"{openingParagraph}{openingStrong}a" +
-				    $"{closingStrong}b{openingStrong}d{closingStrong}{closingParagraph}");
+				    $"__b__d{closingStrong}{closingParagraph}");
 			//<p><strong>a</strong><strong>b</strong><strong>b</strong></p>
 		}
 		
@@ -256,37 +275,37 @@ namespace Markdown
 		}
 
 		#endregion
-
-		#region Header1
-
-		[Test]
-		public void PutsH1Tag_WhenHashIsInTheStartOfTheString()
-		{
-			markdownParser.RenderToHtml("# kek").Should().Be(
-				$"{openingParagraph}{openingHeader1}kek{closingHeader1}{closingParagraph}");
-			//<p><h1>ab</h1></p>
-		}
-		
-		[Test]
-		public void PutsEmTagInsideH1Tag_WhenUnderscoreIsAfterHash()
-		{
-			markdownParser.RenderToHtml("# _kek_").Should().Be(
-				$"{openingParagraph}{openingHeader1}{openingItalic}kek{closingItalic}{closingHeader1}{closingParagraph}");
-			//<p><h1><em>ab</em></h1></p>
-		}
-
-		#endregion
-		
-		#region Header2
-
-		[Test]
-		public void PutsH2Tag_WhenHashIsInTheStartOfTheString()
-		{
-			markdownParser.RenderToHtml("## kek").Should().Be(
-				$"{openingParagraph}{openingHeader2}kek{closingHeader2}{closingParagraph}");
-			//<p><h2>ab</h2></p>
-		}
-
-		#endregion
+//
+//		#region Header1
+//
+//		[Test]
+//		public void PutsH1Tag_WhenHashIsInTheStartOfTheString()
+//		{
+//			markdownParser.RenderToHtml("# kek").Should().Be(
+//				$"{openingParagraph}{openingHeader1}kek{closingHeader1}{closingParagraph}");
+//			//<p><h1>ab</h1></p>
+//		}
+//		
+//		[Test]
+//		public void PutsEmTagInsideH1Tag_WhenUnderscoreIsAfterHash()
+//		{
+//			markdownParser.RenderToHtml("# _kek_").Should().Be(
+//				$"{openingParagraph}{openingHeader1}{openingItalic}kek{closingItalic}{closingHeader1}{closingParagraph}");
+//			//<p><h1><em>ab</em></h1></p>
+//		}
+//
+//		#endregion
+//		
+//		#region Header2
+//
+//		[Test]
+//		public void PutsH2Tag_WhenHashIsInTheStartOfTheString()
+//		{
+//			markdownParser.RenderToHtml("## kek").Should().Be(
+//				$"{openingParagraph}{openingHeader2}kek{closingHeader2}{closingParagraph}");
+//			//<p><h2>ab</h2></p>
+//		}
+//
+//		#endregion
 	}
 }
