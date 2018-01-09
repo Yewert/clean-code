@@ -15,6 +15,7 @@ namespace Markdown
         private string closingStrong;
         private string openingCode;
         private string closingCode;
+        private char escapeSymbol;
         private Md markdownParser;
         [SetUp]
         public void SetUp()
@@ -23,12 +24,13 @@ namespace Markdown
             (openingItalic, closingItalic) = NameToTagConverter.GetTagFromName("em");
             (openingStrong, closingStrong) = NameToTagConverter.GetTagFromName("strong");
             (openingCode, closingCode) = NameToTagConverter.GetTagFromName("code");
+            escapeSymbol = '\\';
             markdownParser = new Md(new IFormattingUnit[]
             {
                 new Italic(),
                 new Bold(),
                 new CodeTag()
-            }, new PairFinder());
+            }, new PairFinder(), escapeSymbol);
         }
 			
         [Test]
@@ -51,6 +53,30 @@ namespace Markdown
         {
             markdownParser.RenderToHtml("_abcd_").Should()
                 .Be($"{openingParagraph}{openingItalic}abcd{closingItalic}{closingParagraph}");
+            //<p><em>abcd</em></p>
+        }
+        
+        [Test]
+        public void EscapesCorrectly_InSimpleCase()
+        {
+            markdownParser.RenderToHtml($"{escapeSymbol}_abcd{escapeSymbol}_").Should()
+                .Be($"{openingParagraph}_abcd_{closingParagraph}");
+            //<p><em>abcd</em></p>
+        }
+        
+        [Test]
+        public void DoesNotPutAnyEmTags_WhenOpeningTagIsEscaped()
+        {
+            markdownParser.RenderToHtml($"{escapeSymbol}_abcd_").Should()
+                .Be($"{openingParagraph}_abcd_{closingParagraph}");
+            //<p><em>abcd</em></p>
+        }
+        
+        [Test]
+        public void DoesNotEscape_WhenEvenAmountOfEscapeSymbols()
+        {
+            markdownParser.RenderToHtml($"{escapeSymbol}{escapeSymbol}_abcd_").Should()
+                .Be($"{openingParagraph}{escapeSymbol}{openingItalic}abcd{closingItalic}{closingParagraph}");
             //<p><em>abcd</em></p>
         }
 		

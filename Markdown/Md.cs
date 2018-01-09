@@ -14,14 +14,16 @@ namespace Markdown
 		private readonly Dictionary<IFormattingUnit, int> tagPriorities;
 		private readonly Dictionary<string, IFormattingUnit> tagToFormatter;
 		private readonly Func<char, bool> isAllowedInTag;
+		private readonly Func<int, EscapeSymbol> escapeFactory;
 		
 
-		public Md(IFormattingUnit[] formatters, IPairFinder pairFinder, string paragraphSymbol="p")
+		public Md(IFormattingUnit[] formatters, IPairFinder pairFinder, char escapeSymbol = '\\', string paragraphSymbol="p")
 		{
 			this.formatters = formatters;
 			this.pairFinder = pairFinder;
-			var allowedChar = new HashSet<char>(formatters.SelectMany(f => f.MarkdownTag));
-			isAllowedInTag = allowedChar.Contains;
+			var tagChars = new HashSet<char>(formatters.SelectMany(f => f.MarkdownTag)) {'\\'};
+			escapeFactory = amount => new EscapeSymbol(amount, tagChars, escapeSymbol);
+			isAllowedInTag = tagChars.Contains;
 			tagPriorities = formatters.Select((f, i) => (f, i)).ToDictionary(v => v.Item1, v => v.Item2);
 			tagToFormatter = formatters.Select(f => (f.MarkdownTag, f)).ToDictionary(v => v.Item1, v => v.Item2);
 			(openingParagraph, closingParagraph) = NameToTagConverter.GetTagFromName(paragraphSymbol);
@@ -35,7 +37,7 @@ namespace Markdown
 			source = source.Replace("<", "&lt").Replace(">", "&gt");
 			var tags = new List<(IFormattingUnit formatter, int position, bool canBeOpening, bool canBeClosing)>();
 			var currentToken = new StringBuilder();
-			
+			var escapeSequences = new List<(EscapeSymbol formatter, int position)>();
 			for (var i = 0; i < source.Length + 1; i++)
 			{
 				if (i < source.Length && isAllowedInTag(source[i]))
@@ -45,6 +47,22 @@ namespace Markdown
 				}
 
 				var potentialTag = currentToken.ToString();
+				var preceedingCharacterIndex = i - potentialTag.Length - 1;
+				var followingCharacterIndex = i;
+
+				var amountOfEscapeChars = potentialTag.TakeWhile(c => c == '\\').Count();
+				if (amountOfEscapeChars != 0)
+				{
+					var esc = escapeFactory(amountOfEscapeChars);
+					escapeSequences.Add((esc, preceedingCharacterIndex + 1));
+					if (amountOfEscapeChars % 2 != 0)
+					{
+						currentToken.Clear();
+						continue;
+					}
+
+					potentialTag = potentialTag.Substring(amountOfEscapeChars);
+				}
 				if (!tagToFormatter.ContainsKey(potentialTag))
 				{
 					currentToken.Clear();
@@ -54,12 +72,10 @@ namespace Markdown
 				var formatter = tagToFormatter[potentialTag];
 				var canBeOpening = false;
 				var canBeClosing = false;
-				var preceedingCharacterIndex = i - currentToken.Length - 1;
 				if (preceedingCharacterIndex >= 0)
 				{
 					canBeClosing = formatter.isLegalPrecedingCharacter(source[preceedingCharacterIndex]);
 				}
-				var followingCharacterIndex = i;
 				if (followingCharacterIndex < source.Length)
 				{
 					canBeOpening = formatter.isLegalFollowingCharacter(source[followingCharacterIndex]);
@@ -70,7 +86,7 @@ namespace Markdown
 					continue;
 				}
 
-				tags.Add((formatter, preceedingCharacterIndex + 1, canBeOpening, canBeClosing));
+				tags.Add((formatter, preceedingCharacterIndex + 1 + amountOfEscapeChars, canBeOpening, canBeClosing));
 				currentToken.Clear();
 			}
 			
@@ -81,7 +97,7 @@ namespace Markdown
 					GetIndexesForTagType(formatters[i], tags, tagLevelSeparatedSubstringIndexes);
 			}
 			return $"{openingParagraph}" +
-			       $"{ReplaceMarkdownTagsWithHtml(source, GetReplacementsInOrder(tagLevelSeparatedSubstringIndexes))}" +
+			       $"{ReplaceMarkdownTagsWithHtml(source, GetReplacementsInOrder(escapeSequences, tagLevelSeparatedSubstringIndexes))}" +
 			       $"{closingParagraph}";
 		}
 		
@@ -127,56 +143,33 @@ namespace Markdown
 			return pairFinder.FindTagPairs(openings, closings);
 		}
 
-		private int? FindPairPositionOrNull(
-			IFormattingUnit formatter,
-			Stack<(IFormattingUnit formatter, int position, bool canBeClosing)> stack)
-		{
-			var depth = 0;
-			foreach (var entry in stack)
-			{
-				if (tagPriorities[entry.formatter] > tagPriorities[formatter])
-					return null;
-				if (entry.formatter == formatter)
-					break;
-				depth++;
-			}
-
-			if (depth == stack.Count)
-				return null;
-			for (int i = 0; i < depth; i++)
-			{
-				stack.Pop();
-			}
-
-			var (_, targetPos, _) = stack.Pop();
-			return targetPos;
-		}
-
-		private IEnumerable<(int position, bool isOpening, int level)> GetReplacementsInOrder(
+		private IEnumerable<(int position, bool isOpening, IFormattingUnit formatter)> GetReplacementsInOrder(
+			List<(EscapeSymbol formatter, int position)> escapeSymbols,
 			IReadOnlyList<(int, int)[]> tagLevelSeparatedSubstringIndexes)
 		{
-			var result = new List<(int Position, bool IsOpening, int Level)>();
+			var result = new List<(int position, bool isOpening, IFormattingUnit formatter)>();
 			for (var i = 0; i < tagLevelSeparatedSubstringIndexes.Count; i++)
 			{
 				foreach (var segment in tagLevelSeparatedSubstringIndexes[i])
 				{
-					result.Add((segment.Item1, true, i));
-					result.Add((segment.Item2, false, i));
+					result.Add((segment.Item1, true, formatters[i]));
+					result.Add((segment.Item2, false, formatters[i]));
 				}                               				
 			}
-			return result.OrderBy(x => x.Position);
+			result.AddRange(escapeSymbols.Select(x => (x.position, true, (IFormattingUnit)x.formatter)));
+			return result.OrderBy(x => x.position);
 		}
 
 		private string ReplaceMarkdownTagsWithHtml(
 			string source,
-			IEnumerable<(int position, bool isOpening, int level)> replacements)
+			IEnumerable<(int position, bool isOpening, IFormattingUnit formatter)> replacements)
 		{
 			var builder = new StringBuilder(source);
 			var offset = 0;
 			
 			foreach (var replacement in replacements.OrderBy(x => x.position))
 			{
-				var formatter = formatters[replacement.level];
+				var formatter = replacement.formatter;
 				if (replacement.isOpening)
 				{
 					builder.Remove(offset + replacement.position, formatter.MarkdownTag.Length);
