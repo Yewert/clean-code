@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace Markdown
@@ -12,16 +13,22 @@ namespace Markdown
         private readonly HashSet<char> illegalPreceedings;
 
 
-        public CodeTag() : this("code", "`", "1234567890 ", "1234567890 ")
+        public CodeTag(Func<string, (string, string)> getTagFromName) 
+            : this("code", "`", "1234567890 ", "1234567890 ", getTagFromName)
         {
         }
 
-        public CodeTag(string htmlTag, string markdownOpeningTag, string illegalPreceeding, string illegalFollowing)
+        public CodeTag(
+            string htmlTag,
+            string markdownOpeningTag,
+            string illegalPreceeding,
+            string illegalFollowing,
+            Func<string, (string, string)> getTagFromName)
         {
             this.markdownOpeningTag = markdownOpeningTag;
             illegalFollowings = new HashSet<char>(illegalFollowing);
             illegalPreceedings = new HashSet<char>(illegalPreceeding);
-            (htmlOpeningTag, htmlClosingTag) = NameToTagConverter.GetTagFromName(htmlTag);
+            (htmlOpeningTag, htmlClosingTag) = getTagFromName(htmlTag);
         }
 
         public string MarkdownTag => markdownOpeningTag;

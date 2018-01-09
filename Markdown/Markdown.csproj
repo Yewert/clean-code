@@ -64,8 +64,8 @@
     <Compile Include="IFormattingUnit.cs" />
     <Compile Include="IntExtensions.cs" />
     <Compile Include="Md.cs" />
-    <Compile Include="NameToTagConverter.cs" />
     <Compile Include="Italic.cs" />
+    <Compile Include="PairFinder_Should.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
   <ItemGroup>

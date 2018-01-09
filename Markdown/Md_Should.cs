@@ -17,20 +17,32 @@ namespace Markdown
         private string closingCode;
         private char escapeSymbol;
         private Md markdownParser;
+        
+        private static (string openingTag, string closingTag) GetTagFromName(string name)
+        {
+            if (name is null)
+                throw new ArgumentNullException();
+            return ($"<{name}>", $"</{name}>");
+        }
+        
         [SetUp]
         public void SetUp()
         {
-            (openingParagraph, closingParagraph) = NameToTagConverter.GetTagFromName("p");
-            (openingItalic, closingItalic) = NameToTagConverter.GetTagFromName("em");
-            (openingStrong, closingStrong) = NameToTagConverter.GetTagFromName("strong");
-            (openingCode, closingCode) = NameToTagConverter.GetTagFromName("code");
+            (openingParagraph, closingParagraph) = GetTagFromName("p");
+            (openingItalic, closingItalic) = GetTagFromName("em");
+            (openingStrong, closingStrong) = GetTagFromName("strong");
+            (openingCode, closingCode) = GetTagFromName("code");
             escapeSymbol = '\\';
-            markdownParser = new Md(new IFormattingUnit[]
-            {
-                new Italic(),
-                new Bold(),
-                new CodeTag()
-            }, new PairFinder(), escapeSymbol);
+            markdownParser = new Md(
+                new IFormattingUnit[]
+                {
+                    new Italic(GetTagFromName),
+                    new Bold(GetTagFromName),
+                    new CodeTag(GetTagFromName)
+                },
+                new PairFinder(),
+                (openingParagraph, closingParagraph),
+                escapeSymbol);
         }
 			
         [Test]

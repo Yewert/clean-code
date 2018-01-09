@@ -17,7 +17,11 @@ namespace Markdown
 		private readonly Func<int, EscapeSymbol> escapeFactory;
 		
 
-		public Md(IFormattingUnit[] formatters, IPairFinder pairFinder, char escapeSymbol = '\\', string paragraphSymbol="p")
+		public Md(
+			IFormattingUnit[] formatters,
+			IPairFinder pairFinder,
+			(string, string) paragraphTags,
+			char escapeSymbol = '\\')
 		{
 			this.formatters = formatters;
 			this.pairFinder = pairFinder;
@@ -26,7 +30,7 @@ namespace Markdown
 			isAllowedInTag = tagChars.Contains;
 			tagPriorities = formatters.Select((f, i) => (f, i)).ToDictionary(v => v.Item1, v => v.Item2);
 			tagToFormatter = formatters.Select(f => (f.MarkdownTag, f)).ToDictionary(v => v.Item1, v => v.Item2);
-			(openingParagraph, closingParagraph) = NameToTagConverter.GetTagFromName(paragraphSymbol);
+			(openingParagraph, closingParagraph) = paragraphTags;
 		}
 
 		public string RenderToHtml(string source)
@@ -34,7 +38,6 @@ namespace Markdown
 			if (source is null)
 				throw new ArgumentNullException();
 
-			source = source.Replace("<", "&lt").Replace(">", "&gt");
 			var tags = new List<(IFormattingUnit formatter, int position, bool canBeOpening, bool canBeClosing)>();
 			var currentToken = new StringBuilder();
 			var escapeSequences = new List<(EscapeSymbol formatter, int position)>();

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Markdown
 {
@@ -11,16 +12,22 @@ namespace Markdown
         private readonly HashSet<char> illegalPreceedings;
 
 
-        public Bold() : this("strong", "__", "1234567890 ", "1234567890 ")
+        public Bold(Func<string, (string, string)> getTagFromName) 
+            : this("strong", "__", "1234567890 ", "1234567890 ", getTagFromName)
         {
         }
 
-        public Bold(string htmlTag, string markdownOpeningTag, string illegalPreceeding, string illegalFollowing)
+        public Bold(
+            string htmlTag,
+            string markdownOpeningTag,
+            string illegalPreceeding,
+            string illegalFollowing,
+            Func<string, (string, string)> getTagFromName)
         {
             this.markdownOpeningTag = markdownOpeningTag;
             illegalFollowings = new HashSet<char>(illegalFollowing);
             illegalPreceedings = new HashSet<char>(illegalPreceeding);
-            (htmlOpeningTag, htmlClosingTag) = NameToTagConverter.GetTagFromName(htmlTag);
+            (htmlOpeningTag, htmlClosingTag) = getTagFromName(htmlTag);
         }
 
         public string MarkdownTag => markdownOpeningTag;
